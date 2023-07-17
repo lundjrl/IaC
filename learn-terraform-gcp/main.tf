@@ -15,9 +15,9 @@ terraform {
 }
 
 provider "google" {
-  credentials = file("service-account.json")
+  credentials = file(var.credentials_file)
 
-  project = "genial-shuttle-393118" # Move to secrets/env
+  project = var.project
   region  = "us-east5"
   zone    = "us-east5-a"
 }
