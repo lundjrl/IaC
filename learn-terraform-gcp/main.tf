@@ -18,8 +18,8 @@ provider "google" {
   credentials = file(var.credentials_file)
 
   project = var.project
-  region  = "us-east5"
-  zone    = "us-east5-a"
+  region  = "us-east4"
+  zone    = "us-east4-a"
 }
 
 resource "google_compute_network" "vpc_network" {
@@ -93,7 +93,7 @@ resource "google_storage_bucket_object" "archive" {
   source    = "./index.zip"
 }
 
-resource "google_cloudfunctions_function" "my-function" {
+resource "google_cloudfunctions2_function" "my-function" {
   name          = "function-test"
   description   = "Does a thing"
   runtime       = "nodejs18"
@@ -108,9 +108,9 @@ resource "google_cloudfunctions_function" "my-function" {
 }
 
 resource "google_cloudfunctions_function_iam_member" "invoker" {
-  project        = google_cloudfunctions_function.my-function.project
-  region         = google_cloudfunctions_function.my-function.region 
-  cloud_function = google_cloudfunctions_function.my-function.name
+  project        = google_cloudfunctions2_function.my-function.project
+  region         = google_cloudfunctions2_function.my-function.region 
+  cloud_function = google_cloudfunctions2_function.my-function.name
 
   role           = "roles/cloudfunctions.invoker"
   member         = "allUsers"
