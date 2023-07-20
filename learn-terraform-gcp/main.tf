@@ -60,3 +60,58 @@ resource "google_compute_firewall" "default" {
 
   source_tags = ["web"]
 }
+
+resource "google_storage_bucket" "ded-ed-terraform-test-bucket" {
+  name                     = "ded-ed-terraform-test-bucket"
+  location                 = "US"
+  public_access_prevention = "enforced"
+  project                  = var.project
+  storage_class            = "STANDARD"
+}
+
+resource "google_storage_bucket" "auto-expire" {
+  name                     = "no-public-access-auto-expiring-bucket"
+  location                 = "US"
+  force_destroy            = true
+  public_access_prevention = "enforced"
+  project                  = var.project
+  storage_class            = "STANDARD"
+
+  lifecycle_rule {
+    condition {
+      age = 3
+    }
+    action {
+      type = "Delete"
+    }
+  }
+}
+
+resource "google_storage_bucket_object" "archive" {
+  name      = "index.zip"
+  bucket    = google_storage_bucket.ded-ed-terraform-test-bucket.name
+  source    = "./index.zip"
+}
+
+resource "google_cloudfunctions_function" "my-function" {
+  name          = "function-test"
+  description   = "Does a thing"
+  runtime       = "nodejs18"
+  project       = var.project 
+
+  available_memory_mb = 128
+  source_archive_bucket = google_storage_bucket.ded-ed-terraform-test-bucket.name
+  source_archive_object = google_storage_bucket_object.archive.name
+
+  trigger_http          = true
+  entry_point           = "helloGET"
+}
+
+resource "google_cloudfunctions_function_iam_member" "invoker" {
+  project        = google_cloudfunctions_function.my-function.project
+  region         = google_cloudfunctions_function.my-function.region 
+  cloud_function = google_cloudfunctions_function.my-function.name
+
+  role           = "roles/cloudfunctions.invoker"
+  member         = "allUsers"
+}
