@@ -22,6 +22,12 @@ provider "google" {
   zone    = "us-east4-a"
 }
 
+resource "google_project_service" "gcp_services" {
+  for_each = toset(var.gcp_service_list)
+  project  = var.project
+  service  = each.key
+}
+
 resource "google_compute_network" "vpc_network" {
   name = "terraform-network"
 }
@@ -61,6 +67,12 @@ resource "google_compute_firewall" "default" {
   source_tags = ["web"]
 }
 
+data "archive_file" "default" {
+  type        = "zip"
+  output_path = "./functions.zip"
+  source_dir  = "functions/hello-world/"
+}
+
 resource "google_storage_bucket" "ded-ed-terraform-test-bucket" {
   name                     = "ded-ed-terraform-test-bucket"
   location                 = "US"
@@ -88,29 +100,39 @@ resource "google_storage_bucket" "auto-expire" {
 }
 
 resource "google_storage_bucket_object" "archive" {
-  name      = "index.zip"
+  name      = "function-source.zip"
   bucket    = google_storage_bucket.ded-ed-terraform-test-bucket.name
-  source    = "./index.zip"
+  source    = data.archive_file.default.output_path
 }
 
 resource "google_cloudfunctions2_function" "my-function" {
   name          = "function-test"
   description   = "Does a thing"
-  runtime       = "nodejs18"
+  location      = "us-east4"
   project       = var.project 
 
-  available_memory_mb = 128
-  source_archive_bucket = google_storage_bucket.ded-ed-terraform-test-bucket.name
-  source_archive_object = google_storage_bucket_object.archive.name
+  build_config {
+    runtime     = "nodejs18"
+    entry_point = "helloGET"
+    source {
+      storage_source {
+        bucket = google_storage_bucket.ded-ed-terraform-test-bucket.name
+        object = google_storage_bucket_object.archive.name
+      }
+    }
+  }
 
-  trigger_http          = true
-  entry_point           = "helloGET"
+  service_config {
+    max_instance_count = 1
+    available_memory   = "256M"
+    timeout_seconds    = 60
+  } 
 }
 
-resource "google_cloudfunctions_function_iam_member" "invoker" {
+resource "google_cloudfunctions2_function_iam_member" "invoker" {
   project        = google_cloudfunctions2_function.my-function.project
-  region         = google_cloudfunctions2_function.my-function.region 
   cloud_function = google_cloudfunctions2_function.my-function.name
+  location       = "us-east4"
 
   role           = "roles/cloudfunctions.invoker"
   member         = "allUsers"
