@@ -10,7 +10,7 @@ terraform {
 }
 
 provider "aws" {
-  region  = "us-east-1"
+  region = "us-east-1"
 }
 
 resource "aws_instance" "app_server" {
@@ -19,5 +19,14 @@ resource "aws_instance" "app_server" {
 
   tags = {
     Name = "ExampleAppServerInstance"
+  }
+}
+
+resource "aws_s3_bucket" "s3_bucket" {
+  bucket = "vue-static-site-bucket"
+
+  tags = {
+    Name        = "Vue site"
+    Environment = "Dev"
   }
 }
